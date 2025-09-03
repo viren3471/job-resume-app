@@ -3,6 +3,13 @@
     {
       "src": "/ai-resume-analyzer/main.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "/job-scan-main/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "rewrites": [
@@ -12,3 +19,4 @@
     }
   ]
 }
+
