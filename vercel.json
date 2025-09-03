@@ -14,12 +14,12 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": "/ai-resume-analyzer/main.py"
     },
     {
       "source": "/(.*)",
-      "destination": "/job-scan-main/dist/index.html"
+      "destination": "index.html"
     }
   ]
 }
