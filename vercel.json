@@ -1,11 +1,11 @@
 {
   "builds": [
     {
-      "src": "/ai-resume-analyzer/main.py",
+      "src": "ai-resume-analyzer/main.py",
       "use": "@vercel/python"
     },
     {
-      "src": "/job-scan-main/package.json",
+      "src": "job-scan-main/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist"
@@ -19,7 +19,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/job-scan-main/dist/index.html"
     }
   ]
 }
