@@ -1,7 +1,10 @@
-import axios from "axios";
+import axios from 'axios';
 
 const api = axios.create({
-  baseURL: "http://localhost:8000", // backend URL
+  // This line is the fix.
+  // In production (on Vercel), it uses a relative path "".
+  // In development (on your PC), it uses "http://localhost:8000".
+  baseURL: import.meta.env.PROD ? '' : 'http://localhost:8000'
 });
 
 export default api;
