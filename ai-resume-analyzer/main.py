@@ -30,7 +30,8 @@ async def root():
     return {"message": "Hello World from FastAPI 🚀 - Backend is running!"}
 
 # ✅ Resume analysis route
-@app.post("/api/analyze_resume")
+# This is the corrected line
+@app.post("/analyze_resume")
 async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
