@@ -6,16 +6,27 @@ import shutil
 from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
-# We are commenting out the genai import for now to ensure the server starts
-# import google.generativeai as genai
+import google.generativeai as genai
 
 # --- Configuration ---
 app = FastAPI(title="AI Resume Analyzer")
 
-# --- TEMPORARILY DISABLED API Key Configuration FOR DEBUGGING ---
-# We are disabling this to check if the server can start without it.
-print("DEBUG_MODE: Skipping Gemini API configuration to test server startup.")
-IS_GEMINI_CONFIGURED = False 
+# --- Safer API Key Configuration ---
+API_KEY = os.getenv("GOOGLE_API_KEY")
+IS_GEMINI_CONFIGURED = False
+
+if not API_KEY:
+    # Print an error to Vercel logs if the key is missing
+    print("FATAL_ERROR: GOOGLE_API_KEY environment variable not found.")
+else:
+    try:
+        genai.configure(api_key=API_KEY)
+        IS_GEMINI_CONFIGURED = True
+        # Print a success message to Vercel logs
+        print("SUCCESS: Gemini API configured successfully.")
+    except Exception as e:
+        # Print an error to Vercel logs if configuration fails
+        print(f"FATAL_ERROR: Could not configure Gemini API: {e}")
 
 # Use /tmp for Vercel's writable directory
 UPLOAD_DIR = "/tmp/uploads"
@@ -43,15 +54,42 @@ def extract_text_from_pdf(file_path: str) -> str:
         return ""
 
 def analyze_resume_with_ai(resume_text: str, job_desc: str) -> dict:
-    # This will now always return an error because the API is disabled
-    print("DEBUG_MODE: AI analysis called, but API is disabled.")
-    return {"error": "Server is running, but AI analysis is temporarily disabled for testing."}
+    # Check if the API key was successfully configured at the start
+    if not IS_GEMINI_CONFIGURED:
+        print("ERROR in analyze_resume_with_ai: Gemini API is not configured.")
+        return {"error": "Server-side configuration error: The API Key is missing or invalid."}
+
+    prompt = f"""
+    You are a career advisor. Compare this resume with the job description.
+    Resume: {resume_text}
+    Job Description: {job_desc}
+    Return the output STRICTLY in JSON format like this:
+    {{
+      "match_percentage": 65,
+      "strengths": ["Skill 1", "Skill 2"],
+      "weaknesses": ["Weakness 1", "Weakness 2"]
+    }}
+    """
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(prompt)
+        content = response.text
+        json_match = re.search(r"```json\s*(\{.*?\})\s*```", content, re.DOTALL)
+        if json_match:
+            content = json_match.group(1)
+        return json.loads(content)
+    except Exception as e:
+        print(f"ERROR during AI analysis: {e}")
+        return {"error": "Failed to get a valid response from the AI model.", "details": str(e)}
 
 # --- API Routes ---
 @app.get("/api/test")
 async def test_route():
     """A simple test route to check if the backend is running."""
-    return {"message": "Python backend is alive! (API Disabled)"}
+    if IS_GEMINI_CONFIGURED:
+        return {"message": "Python backend is alive and Gemini is configured!"}
+    else:
+        return {"message": "Python backend is alive, but FAILED to configure Gemini API. Check Vercel logs for FATAL_ERROR."}
 
 @app.post("/api/analyze_resume")
 async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
@@ -64,7 +102,6 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
         resume_text = await run_in_threadpool(extract_text_from_pdf, file_path)
         if not resume_text:
             raise HTTPException(status_code=400, detail="Could not extract text from PDF.")
-        # The result will be the error message from the helper function
         result = await run_in_threadpool(analyze_resume_with_ai, resume_text, job_desc)
         return result
     except Exception as e:
